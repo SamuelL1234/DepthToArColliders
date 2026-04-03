@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DepthToArColliders — Real-Time Depth-Based Physics Colliders for Unity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <style>
+        /*
+         * DESIGN PHILOSOPHY (applying YC Design Review principles):
+         *
+         * ✗ NO purple gradients (the #1 AI slop tell)
+         * ✗ NO scroll-jacking (feels like "molasses")
+         * ✗ NO fade-in animations (content gets missed, scroll IS the motion)
+         * ✗ NO decorative lines/meteors/chasing buttons (distracting, zero value)
+         * ✗ NO emoji icons (lazy, a "tell" for LLM-generated)
+         * ✗ NO bento box grids with colored icon backgrounds
+         * ✗ NO auto-advancing carousels
+         * ✗ NO full-height hero that "locks you in"
+         *
+         * ✓ Hover effects INVITE clicking (brighten, lift — never fade out)
+         * ✓ Max 3 typography styles, tight hierarchy
+         * ✓ Clear H1: What is it? Who is it for? Why should they care? + CTA
+         * ✓ Next section peeks above the fold
+         * ✓ Every element earns its place
+         * ✓ Visuals reinforce the product, not decoration
+         * ✓ Brand-first: distinctive palette that isn't purple
+         * ✓ Light theme: stand apart from dark-mode AI slop
+         */
+
+        :root {
+            --bg: #FAF8F4;
+            --bg-warm: #F3EFE8;
+            --surface: #FFFFFF;
+            --border: #E2DDD4;
+            --text: #1A1A1A;
+            --text-secondary: #6B6560;
+            --accent: #C7440E;
+            --accent-hover: #E05A1F;
+            --accent-bg: #FFF3ED;
+            --code-bg: #2B2926;
+            --code-text: #F0ECE4;
+            --font-display: 'DM Mono', monospace;
+            --font-body: 'Source Serif 4', Georgia, serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); }
+
+        /* ─── Top bar — simple, no sticky tricks ─── */
+        .topbar {
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .topbar-logo {
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .topbar-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .topbar-links a {
+            font-family: var(--font-display);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transition: color 0.15s ease;
+        }
+
+        /* Hover: brighten, don't fade */
+        .topbar-links a:hover {
+            color: var(--accent);
+        }
+
+        /* ─── Hero — not full-height, next section peeks ─── */
+        .hero {
+            padding: 4rem 2rem 2rem;
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .hero-eyebrow {
+            font-family: var(--font-display);
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Only 2 heading styles total: h1 and h2 — tight hierarchy */
+        h1 {
+            font-family: var(--font-body);
+            font-size: clamp(2rem, 4.5vw, 3rem);
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            margin-bottom: 1.25rem;
+            max-width: 650px;
+        }
+
+        .hero-description {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 560px;
+            margin-bottom: 2rem;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.7rem 1.4rem;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* Hover: lift + glow — makes things MORE clickable */
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(199, 68, 14, 0.25);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text);
+            border: 1.5px solid var(--border);
+        }
+        .btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .btn svg { width: 16px; height: 16px; }
+
+        /* ─── Hero visual — IS the product, not decoration ─── */
+        .hero-visual {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--code-bg);
+        }
+
+        .hero-visual svg { width: 100%; display: block; }
+
+        /* ─── Sections ─── */
+        section { padding: 4rem 0; }
+
+        .section-divider {
+            width: 100%;
+            height: 1px;
+            background: var(--border);
+            max-width: 820px;
+            margin: 0 auto;
+        }
+
+        .section-tag {
+            font-family: var(--font-display);
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.75rem;
+        }
+
+        h2 {
+            font-family: var(--font-body);
+            font-size: clamp(1.4rem, 3vw, 1.85rem);
+            font-weight: 700;
+            letter-spacing: -0.015em;
+            line-height: 1.3;
+            margin-bottom: 1rem;
+        }
+
+        .section-lead {
+            color: var(--text-secondary);
+            max-width: 520px;
+            margin-bottom: 2rem;
+        }
+
+        /* ─── Video ─── */
+        .video-wrap {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: #000;
+        }
+
+        .video-wrap video { width: 100%; display: block; }
+
+        /* ─── Pipeline — no bento boxes, no emoji icons ─── */
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        @media (max-width: 640px) {
+            .pipeline { grid-template-columns: 1fr; }
+        }
+
+        .pipe-step {
+            background: var(--surface);
+            padding: 1.75rem 1.5rem;
+        }
+
+        .pipe-step-num {
+            font-family: var(--font-display);
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .pipe-step h3 {
+            font-family: var(--font-body);
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .pipe-step p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .pipe-tech {
+            margin-top: 0.75rem;
+            font-family: var(--font-display);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        /* ─── Architecture flow — inline, not boxes ─── */
+        .arch-flow {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            padding: 1.25rem 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .arch-flow .node { color: var(--text); font-weight: 500; }
+        .arch-flow .arrow { color: var(--accent); }
+
+        /* ─── Features — prose, not card grid ─── */
+        .features-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem 3rem;
+        }
+
+        @media (max-width: 640px) {
+            .features-list { grid-template-columns: 1fr; }
+        }
+
+        .feature h3 {
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+
+        .feature p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ─── Code blocks ─── */
+        .code-block {
+            background: var(--code-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 1rem 0 1.5rem;
+        }
+
+        .code-header {
+            padding: 0.5rem 1rem;
+            font-family: var(--font-display);
+            font-size: 0.65rem;
+            color: rgba(240, 236, 228, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .code-body {
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        .code-body pre {
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            line-height: 1.7;
+            color: var(--code-text);
+        }
+
+        .code-body .cm { color: rgba(240,236,228,0.35); }
+        .code-body .kw { color: #E8915A; }
+        .code-body .str { color: #93B87E; }
+        .code-body .fl { color: #D4A76A; }
+
+        /* ─── Quick start steps ─── */
+        .step { margin-bottom: 2rem; }
+
+        .step h3 {
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .step h3 .n {
+            font-family: var(--font-display);
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--accent);
+            background: var(--accent-bg);
+            width: 22px; height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            flex-shrink: 0;
+        }
+
+        .step > p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            padding-left: 2.1rem;
+        }
+
+        .step > p code {
+            font-family: var(--font-display);
+            font-size: 0.8rem;
+            background: var(--bg-warm);
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+
+        /* ─── Requirements ─── */
+        .req-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (max-width: 500px) {
+            .req-row { grid-template-columns: 1fr; }
+        }
+
+        .req-col {
+            background: var(--surface);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .req-col h4 {
+            font-family: var(--font-display);
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+
+        .req-col ul { list-style: none; }
+
+        .req-col li {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            padding: 0.15rem 0;
+        }
+
+        .req-col li::before {
+            content: '– ';
+            color: var(--border);
+        }
+
+        /* ─── Footer ─── */
+        footer { padding: 2.5rem 0; }
+
+        footer .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        footer p, footer a {
+            font-family: var(--font-display);
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        footer a:hover { color: var(--accent); }
+
+        /* ─── Depth colormap strip — contextual to the product ─── */
+        .depth-strip {
+            height: 3px;
+            background: linear-gradient(90deg, #000004, #420A68, #932667, #DD513A, #FCA50A, #FCFFA4);
+        }
+    </style>
+</head>
+<body>
+
+<div class="depth-strip"></div>
+
+<nav class="topbar">
+    <div class="topbar-logo">DepthToArColliders</div>
+    <div class="topbar-links">
+        <a href="#demo">Demo</a>
+        <a href="#how">How it works</a>
+        <a href="#start">Quick start</a>
+        <a href="https://github.com/SamuelL1234/DepthToArColliders" target="_blank">GitHub</a>
+    </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<!-- Clear H1: what + who + why + CTA. Not full-height — next section peeks. -->
+<header class="hero">
+    <div class="hero-eyebrow">Open Source · Unity + Python</div>
+
+    <h1>Turn a webcam into real-time physics colliders for Unity</h1>
+
+    <p class="hero-description">
+        Depth Anything V2 estimates metric depth from any camera feed. A Python server streams it to Unity over TCP, which generates voxel-based collision meshes — floors, walls, furniture — at interactive frame rates.
+    </p>
+
+    <div class="hero-actions">
+        <a href="https://github.com/SamuelL1234/DepthToArColliders" class="btn btn-primary" target="_blank">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+            View on GitHub
+        </a>
+        <a href="#start" class="btn btn-outline">Quick start ↓</a>
+    </div>
+
+    <!-- Visual: a generated depth map — this IS the product, not decoration -->
+    <div class="hero-visual">
+        <svg viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg" style="background: #1a1917;">
+            <defs>
+                <linearGradient id="inferno" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#000004"/>
+                    <stop offset="20%" stop-color="#420A68"/>
+                    <stop offset="40%" stop-color="#932667"/>
+                    <stop offset="60%" stop-color="#DD513A"/>
+                    <stop offset="80%" stop-color="#FCA50A"/>
+                    <stop offset="100%" stop-color="#FCFFA4"/>
+                </linearGradient>
+            </defs>
+            <g opacity="0.9" id="depth-grid"></g>
+            <text x="16" y="22" fill="rgba(255,255,255,0.35)" font-family="DM Mono, monospace" font-size="10" font-weight="500">DEPTH MAP (320×240) → TCP STREAM → UNITY VOXEL COLLIDERS</text>
+            <text x="16" y="248" fill="rgba(255,255,255,0.25)" font-family="DM Mono, monospace" font-size="9">NEAR</text>
+            <rect x="46" y="239" width="160" height="8" rx="1" fill="url(#inferno)" opacity="0.6"/>
+            <text x="212" y="248" fill="rgba(255,255,255,0.25)" font-family="DM Mono, monospace" font-size="9">FAR</text>
+        </svg>
+    </div>
+</header>
+
+<div class="section-divider"></div>
+
+<!-- ═══════ DEMO ═══════ -->
+<section id="demo">
+    <div class="container">
+        <div class="section-tag">Demo</div>
+        <h2>A ragdoll colliding with the real world</h2>
+        <p class="section-lead">Real-time depth estimation drives physics collisions in Unity. No LiDAR, no special hardware — just a webcam.</p>
+        <div class="video-wrap">
+            <video controls preload="metadata">
+                <source src="DemoVideo.mp4" type="video/mp4">
+            </video>
+        </div>
+    </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════ HOW IT WORKS ═══════ -->
+<section id="how">
+    <div class="container">
+        <div class="section-tag">Pipeline</div>
+        <h2>How it works</h2>
+
+        <div class="arch-flow">
+            <span class="node">Webcam</span>
+            <span class="arrow">→</span>
+            <span class="node">Depth Anything V2</span>
+            <span class="arrow">→</span>
+            <span class="node">TCP Stream</span>
+            <span class="arrow">→</span>
+            <span class="node">Unity Voxel Colliders</span>
+        </div>
+
+        <div class="pipeline">
+            <div class="pipe-step">
+                <div class="pipe-step-num">01 Capture</div>
+                <h3>Depth estimation</h3>
+                <p>Python captures webcam frames and runs Depth Anything V2's metric model, producing per-pixel distance maps in real time.</p>
+                <div class="pipe-tech">Python · PyTorch · OpenCV</div>
+            </div>
+            <div class="pipe-step">
+                <div class="pipe-step-num">02 Stream</div>
+                <h3>Binary TCP protocol</h3>
+                <p>Depth maps, compressed color frames, and camera intrinsics are packed into a binary stream over a local TCP socket.</p>
+                <div class="pipe-tech">TCP · Binary protocol · JPEG</div>
+            </div>
+            <div class="pipe-step">
+                <div class="pipe-step-num">03 Collide</div>
+                <h3>Voxel physics generation</h3>
+                <p>Unity back-projects depth to 3D, voxelizes the scene, runs greedy box merging, and spawns optimized colliders. Auto-leveling extends the floor.</p>
+                <div class="pipe-tech">Unity · C# · Greedy merge</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════ FEATURES ═══════ -->
+<section>
+    <div class="container">
+        <div class="section-tag">Features</div>
+        <h2>What's inside</h2>
+
+        <div class="features-list">
+            <div class="feature">
+                <h3>3D greedy box merging</h3>
+                <p>Voxel collision with greedy merge across all three axes. Produces the minimal set of axis-aligned box colliders for maximum physics performance.</p>
+            </div>
+            <div class="feature">
+                <h3>Auto floor leveling</h3>
+                <p>Least-squares plane fitting detects the floor automatically and corrects camera tilt so physics stays level with a handheld camera.</p>
+            </div>
+            <div class="feature">
+                <h3>Real-time visual mesh</h3>
+                <p>Textured 3D mesh reconstructed each frame with UV mapping and depth-discontinuity filtering for clean triangulation.</p>
+            </div>
+            <div class="feature">
+                <h3>Active ragdoll system</h3>
+                <p>Muscle-driven ragdoll with joint rotation followers, hip tracking, and torso stabilization for physics character interaction.</p>
+            </div>
+            <div class="feature">
+                <h3>Configurable pipeline</h3>
+                <p>Model size, indoor/outdoor scenes, voxel resolution, depth range, and preview modes — all via command line flags.</p>
+            </div>
+            <div class="feature">
+                <h3>Auto-reconnect TCP</h3>
+                <p>Streams intrinsics, float32 depth, and JPEG color in a single packet. Reconnects automatically on disconnect.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ═══════ QUICK START ═══════ -->
+<section id="start">
+    <div class="container">
+        <div class="section-tag">Get started</div>
+        <h2>Quick start</h2>
+
+        <div class="req-row">
+            <div class="req-col">
+                <h4>Python side</h4>
+                <ul>
+                    <li>Python 3.8+</li>
+                    <li>PyTorch (CUDA recommended)</li>
+                    <li>OpenCV</li>
+                    <li>Depth Anything V2 weights</li>
+                </ul>
+            </div>
+            <div class="req-col">
+                <h4>Unity side</h4>
+                <ul>
+                    <li>Unity 2021.3+</li>
+                    <li>Standard 3D project</li>
+                    <li>No extra packages needed</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="n">1</span> Clone the repo</h3>
+            <div class="code-block">
+                <div class="code-header">Terminal</div>
+                <div class="code-body">
+<pre><span class="kw">git</span> clone https://github.com/SamuelL1234/DepthToArColliders.git
+<span class="kw">cd</span> DepthToArColliders</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="n">2</span> Download model weights</h3>
+            <p>Place Depth Anything V2 metric checkpoints in <code>checkpoints/</code>. See the <a href="https://github.com/DepthAnything/Depth-Anything-V2" target="_blank">Depth Anything V2 repo</a> for download links.</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="n">3</span> Start the depth server</h3>
+            <div class="code-block">
+                <div class="code-header">Terminal</div>
+                <div class="code-body">
+<pre><span class="kw">python</span> depth_stream.py <span class="fl">--source</span> <span class="str">0</span> <span class="fl">--model-size</span> <span class="str">base</span> <span class="fl">--preview</span>
+
+<span class="cm"># Options:</span>
+<span class="cm">#   --source 0           Webcam index or video path</span>
+<span class="cm">#   --model-size         small | base | large</span>
+<span class="cm">#   --scene              indoor | outdoor</span>
+<span class="cm">#   --port 9999          TCP port for Unity</span>
+<span class="cm">#   --depth-width 320    Depth output resolution</span>
+<span class="cm">#   --preview            Show depth visualization</span></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3><span class="n">4</span> Open the Unity scene & hit Play</h3>
+            <p>Open <code>Scenes/SampleScene.unity</code> and press Play. Unity auto-connects to the Python depth server on <code>127.0.0.1:9999</code>.</p>
+        </div>
+    </div>
+</section>
+
+<div class="depth-strip"></div>
+
+<footer>
+    <div class="container">
+        <p>Built by <a href="https://github.com/SamuelL1234" target="_blank">SamuelL1234</a></p>
+        <p>
+            <a href="https://github.com/SamuelL1234/DepthToArColliders" target="_blank">Source</a> ·
+            <a href="https://github.com/DepthAnything/Depth-Anything-V2" target="_blank">Depth Anything V2</a>
+        </p>
+    </div>
+</footer>
+
+<script>
+// Generate depth map grid in hero — this represents the actual product output
+(function() {
+    const grid = document.getElementById('depth-grid');
+    const cols = 82, rows = 20;
+    const cellW = 10, cellH = 10;
+    const offsetX = 0, offsetY = 32;
+
+    function inferno(t) {
+        t = Math.max(0, Math.min(1, t));
+        const r = Math.min(255, t < 0.35 ? t * 2.86 * 120 : 120 + (t - 0.35) * 1.54 * 135);
+        const g = Math.min(255, t < 0.45 ? t * 2.2 * 40 : 40 + (t - 0.45) * 1.82 * 200);
+        const b = Math.min(255, t < 0.2 ? t * 5 * 100 : t < 0.5 ? 100 - (t - 0.2) * 3.33 * 100 : 0);
+        return `rgb(${r|0},${g|0},${b|0})`;
+    }
+
+    // Simulated room depth map — floor close, walls far, furniture mid
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const nx = x / cols, ny = y / rows;
+            let depth = 0.4;
+            depth -= (ny - 0.5) * 0.6;
+            if (nx < 0.1 || nx > 0.9) depth += 0.2;
+            if (nx > 0.25 && nx < 0.55 && ny > 0.5 && ny < 0.75) depth = 0.25;
+            if (nx > 0.6 && nx < 0.72 && ny > 0.2 && ny < 0.8) depth = 0.15 + ny * 0.15;
+            depth += (Math.sin(x * 3.7 + y * 2.1) * 0.03);
+            depth = Math.max(0, Math.min(1, depth));
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', offsetX + x * cellW);
+            rect.setAttribute('y', offsetY + y * cellH);
+            rect.setAttribute('width', cellW - 0.5);
+            rect.setAttribute('height', cellH - 0.5);
+            rect.setAttribute('fill', inferno(depth));
+            rect.setAttribute('rx', '0.5');
+            grid.appendChild(rect);
+        }
+    }
+})();
+</script>
+
+</body>
+</html>
